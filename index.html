@@ -142,13 +142,13 @@
                 if (lastModified) {
                     const date = new Date(lastModified);
                     const formatted = `${date.getFullYear()}/${String(date.getMonth() + 1).padStart(2, '0')}/${String(date.getDate()).padStart(2, '0')} ${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`;
-                    document.getElementById('lastUpdated').innerText = `🔄 データ最終更新: ${formatted}`;
+                    document.getElementById('lastUpdated').innerText = `🔄 メニューデータ最終更新: ${formatted}`;
                 } else {
-                    document.getElementById('lastUpdated').innerText = `🔄 データ最終更新: 取得できませんでした`;
+                    document.getElementById('lastUpdated').innerText = `🔄 メニューデータ最終更新: 取得できませんでした`;
                 }
             })
             .catch(err => {
-                document.getElementById('lastUpdated').innerText = `🔄 データ最終更新: エラー`;
+                document.getElementById('lastUpdated').innerText = `🔄 メニューデータ最終更新: エラー`;
             });
         // --------------------------------------------------
 
@@ -175,6 +175,7 @@
             });
         });
 
+        
         function initNutrientUI() {
             const grid = document.getElementById('nutrientGrid');
             grid.innerHTML = '';
@@ -185,12 +186,13 @@
                 row.className = `nutrient-row ${nut.enabled ? '' : 'disabled'}`;
                 row.id = `row_${key}`;
 
+                // minとmaxのinputに onchange イベントを追加
                 row.innerHTML = `
                     <input type="checkbox" id="chk_${key}" ${nut.enabled ? 'checked' : ''} onchange="toggleNutrientRow('${key}')">
                     <span class="nutrient-name">${nut.label}</span>
-                    <input type="number" id="min_${key}" value="${nut.min}" ${nut.enabled ? '' : 'disabled'}>
+                    <input type="number" id="min_${key}" value="${nut.min}" ${nut.enabled ? '' : 'disabled'} onchange="validateRange('${key}', 'min')">
                     <span class="range-txt">≦ 値 ≦</span>
-                    <input type="number" id="max_${key}" value="${nut.max}" ${nut.enabled ? '' : 'disabled'}>
+                    <input type="number" id="max_${key}" value="${nut.max}" ${nut.enabled ? '' : 'disabled'} onchange="validateRange('${key}', 'max')">
                     <span class="unit-txt">${nut.unit}</span>
                 `;
                 grid.appendChild(row);
@@ -213,6 +215,27 @@
                 row.classList.add('disabled');
             }
         }
+
+        // --- 追加: 下限と上限の矛盾を自動で修正する関数 ---
+        function validateRange(key, changedField) {
+            const minInput = document.getElementById(`min_${key}`);
+            const maxInput = document.getElementById(`max_${key}`);
+            
+            let minVal = parseFloat(minInput.value) || 0;
+            let maxVal = parseFloat(maxInput.value) || 0;
+
+            // もし下限が上限を上回ってしまったら
+            if (minVal > maxVal) {
+                if (changedField === 'min') {
+                    // 下限(Min)の数値をいじって上限を突破した場合は、上限(Max)を下限と同じ値に引き上げる
+                    maxInput.value = minVal;
+                } else if (changedField === 'max') {
+                    // 上限(Max)の数値をいじって下限を下回った場合は、下限(Min)を上限と同じ値に引き下げる
+                    minInput.value = maxVal;
+                }
+            }
+        }
+        
 
         // ---------- プリセット管理ロジック ----------
 
