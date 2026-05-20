@@ -65,18 +65,25 @@
         .status-ok { color: #28a745 !important; } 
         .status-under { color: #fd7e14 !important; } 
         .status-over { color: #dc3545 !important; } 
-
-        /* アレルギー選択ボタンのスタイル */
+        
+               .status-under { color: #fd7e14 !important; } 
+        .status-over { color: #dc3545 !important; } 
+        
+        /* 💡 アレルギー選択ボタンのスタイル（改良版） */
         .allergy-container { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 20px; }
         .allergy-label { 
             display: inline-flex; align-items: center; cursor: pointer;
-            background: #fff; border: 1px solid #ccc; padding: 6px 12px;
-            border-radius: 20px; font-size: 0.85rem; color: #555; transition: 0.2s;
+            background: #f8f9fa; border: 1px solid #ccc; padding: 6px 14px;
+            border-radius: 20px; font-size: 0.85rem; color: #333; transition: 0.2s;
         }
-        .allergy-label:hover { background: #f8f9fa; }
-        .allergy-label input { display: none; } /* デフォルトのチェックボックスを隠す */
-        /* チェックされた時の状態（赤っぽくして除外をアピール） */
-        .allergy-label.checked { background: #fee2e2; border-color: #ef4444; color: #b91c1c; font-weight: bold; }
+        .allergy-label:hover { background: #e2e8f0; }
+        .allergy-label input { display: none; }
+        
+        /* 選択時（除外中）のスタイル */
+        .allergy-label.checked { 
+            background: #fee2e2; border-color: #ef4444; color: #b91c1c; font-weight: bold;
+            text-decoration: line-through; /* 打ち消し線を追加 */
+        }
 
     </style>
 </head>
@@ -194,8 +201,8 @@
                 skipEmptyLines: true,
                 complete: function(results) {
                     globalMenuData = results.data;
-                    
-                    // --- 追加: アレルギー項目の動的抽出とUI生成 ---
+
+                    // アレルギー項目の動的抽出とUI生成（改良版）
                     const allAllergens = new Set();
                     globalMenuData.forEach(row => {
                         const allergyStr = row['アレルギー'];
@@ -209,17 +216,36 @@
                     Array.from(allAllergens).sort().forEach(allergen => {
                         const lbl = document.createElement('label');
                         lbl.className = 'allergy-label';
-                        lbl.innerHTML = `<input type="checkbox" value="${allergen}" class="allergy-chk" onchange="this.parentElement.classList.toggle('checked', this.checked)"> 🚫 ${allergen}`;
+                        
+                        // 初期状態のHTMLを生成
+                        lbl.innerHTML = `
+                            <input type="checkbox" value="${allergen}" class="allergy-chk">
+                            <span class="allergy-text">${allergen}</span>
+                        `;
+                        
+                        // チェック状態が変わった時のイベントリスナーを追加
+                        const chk = lbl.querySelector('.allergy-chk');
+                        chk.addEventListener('change', function() {
+                            const textSpan = lbl.querySelector('.allergy-text');
+                            if (this.checked) {
+                                lbl.classList.add('checked');
+                                textSpan.innerText = `🚫 ${allergen} (除外中)`;
+                            } else {
+                                lbl.classList.remove('checked');
+                                textSpan.innerText = allergen;
+                            }
+                        });
+
                         allergyArea.appendChild(lbl);
                     });
-                    // ------------------------------------------
-
+                    // 💡 ここまで
 
                     const btn = document.getElementById('calcButton');
                     btn.disabled = false;
                     btn.innerText = '最強コンボを計算';
                     applyDefaultPreset('standard');
                 },
+
                 error: function(err) {
                     console.error("CSV読み込みエラー:", err);
                     document.getElementById('calcButton').innerText = 'データ読み込み失敗';
