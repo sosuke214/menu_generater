@@ -65,6 +65,19 @@
         .status-ok { color: #28a745 !important; } 
         .status-under { color: #fd7e14 !important; } 
         .status-over { color: #dc3545 !important; } 
+
+        /* アレルギー選択ボタンのスタイル */
+        .allergy-container { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 20px; }
+        .allergy-label { 
+            display: inline-flex; align-items: center; cursor: pointer;
+            background: #fff; border: 1px solid #ccc; padding: 6px 12px;
+            border-radius: 20px; font-size: 0.85rem; color: #555; transition: 0.2s;
+        }
+        .allergy-label:hover { background: #f8f9fa; }
+        .allergy-label input { display: none; } /* デフォルトのチェックボックスを隠す */
+        /* チェックされた時の状態（赤っぽくして除外をアピール） */
+        .allergy-label.checked { background: #fee2e2; border-color: #ef4444; color: #b91c1c; font-weight: bold; }
+
     </style>
 </head>
 <body>
@@ -86,7 +99,7 @@
         
         <div id="presetDescription" class="preset-desc"></div>
 
-        <div class="section-title" style="margin-top: 10px;">2. パラメーター詳細設定</div>
+        <div class="section-title" style="margin-top: 10px;">2. パラメーター詳細設定(手動で変えれます)</div>
         
         <div class="budget-wrapper">
             <div>
@@ -102,7 +115,17 @@
         <label style="margin-bottom: 10px; display: block; font-size: 0.9rem;">(チェックONで計算対象)</label>
         <div class="nutrient-grid" id="nutrientGrid"></div>
         
-        <button class="save-preset-btn" onclick="saveCurrentStateAsPreset()">💾 現在の設定を「マイプリセット」に保存</button>
+        <div class="section-title" style="margin-top: 20px;">3. アレルギー設定 (除外する品目)</div>
+        
+        <div style="font-size: 0.85rem; color: #555; background: #fff3cd; border: 1px solid #ffeeba; padding: 10px 12px; border-radius: 6px; margin-bottom: 15px;">
+            <strong>⚠️ アレルギー表示の安全設計について</strong><br>
+            生協公式ページでは29品目のアレルギー情報が掲載されているが、本アプリではボタンを29個固定では用意していない。<br>
+            これはデータ上の表記揺れ（例：「さば」と「鯖」、「乳」と「乳成分」）によって、除外設定をすり抜ける命に関わるバグを防ぐためだ。<br>
+            その日のメニューデータに実際に登場するアレルギー文字列を自動抽出し、ボタンを動的に生成する安全設計としている。
+        </div>
+        <div id="allergyArea" class="allergy-container">
+            </div>
+        <button class="save-preset-btn" onclick="saveCurrentStateAsPreset()">💾 現在の設定を「プリセット」に追加保存</button>
 
         <button class="calc-btn" id="calcButton" disabled>データを読み込み中...</button>
     </div>
@@ -171,6 +194,27 @@
                 skipEmptyLines: true,
                 complete: function(results) {
                     globalMenuData = results.data;
+                    
+                    // --- 追加: アレルギー項目の動的抽出とUI生成 ---
+                    const allAllergens = new Set();
+                    globalMenuData.forEach(row => {
+                        const allergyStr = row['アレルギー'];
+                        if (allergyStr && allergyStr !== 'なし' && allergyStr.trim() !== '') {
+                            allergyStr.split('、').forEach(a => allAllergens.add(a.trim()));
+                        }
+                    });
+
+                    const allergyArea = document.getElementById('allergyArea');
+                    allergyArea.innerHTML = '';
+                    Array.from(allAllergens).sort().forEach(allergen => {
+                        const lbl = document.createElement('label');
+                        lbl.className = 'allergy-label';
+                        lbl.innerHTML = `<input type="checkbox" value="${allergen}" class="allergy-chk" onchange="this.parentElement.classList.toggle('checked', this.checked)"> 🚫 ${allergen}`;
+                        allergyArea.appendChild(lbl);
+                    });
+                    // ------------------------------------------
+
+
                     const btn = document.getElementById('calcButton');
                     btn.disabled = false;
                     btn.innerText = '最強コンボを計算';
@@ -445,6 +489,10 @@
 
             const parseNum = (val) => parseFloat(String(val).replace(/[^0-9.]/g, '')) || 0;
 
+            // 追加: 画面でチェックされているアレルギー項目を取得
+            const excludedAllergies = Array.from(document.querySelectorAll('.allergy-chk:checked')).map(cb => cb.value);
+
+            // 追加: CSVの行データから、栄養素とアレルギー情報を含むメニューアイテムの配列を作成
             const menu = globalMenuData.map(row => {
                 const itemNutrients = {};
                 Object.keys(runConfig).forEach(key => {
@@ -456,13 +504,25 @@
                     itemNutrients[key] = parseNum(rawVal);
                 });
 
+                // 追加: CSVからアレルギー文字列を配列化
+                const allergyStr = row['アレルギー'] || '';
+                const itemAllergies = (allergyStr === 'なし' || allergyStr.trim() === '') ? [] : allergyStr.split('、').map(a => a.trim());
+
                 return {
                     name: row['商品名'] || '不明',
                     category: row['カテゴリ'] || '不明',
                     price: parseNum(row['価格']),
-                    nutrients: itemNutrients
+                    nutrients: itemNutrients,
+                    allergies: itemAllergies //追加
                 };
-            }).filter(item => item.price > 0);
+            })
+            .filter(item => item.price > 0)
+            //追加: チェックされたアレルギーを含むメニューをここで除外（足切り）
+            .filter(item => {
+                if (excludedAllergies.length === 0) return true; // 除外指定なしなら全て通過
+                return !excludedAllergies.some(badAllergy => item.allergies.includes(badAllergy));
+            });
+            // ここまで
 
             const MAX_ITEMS = 5;
             const allCombos = [];
