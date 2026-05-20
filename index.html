@@ -1,0 +1,534 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>食堂コンボ最適化ツール (カスタムプリセット対応版)</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+    <style>
+        body { font-family: "Helvetica Neue", Arial, "Hiragino Kaku Gothic ProN", "Hiragino Sans", Meiryo, sans-serif; background: #f8f9fa; color: #333; padding: 20px; max-width: 850px; margin: 0 auto; line-height: 1.6; }
+        h1 { font-size: 1.5rem; border-bottom: 2px solid #007bff; padding-bottom: 10px; }
+        
+        .panel { background: #fff; padding: 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); margin-bottom: 20px; }
+        
+        .section-title { font-size: 1.1rem; font-weight: bold; margin-bottom: 10px; padding-bottom: 5px; border-bottom: 1px solid #eee; }
+        
+        .preset-buttons { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 15px; }
+        .preset-btn { background: #e2e8f0; border: none; padding: 8px 12px; border-radius: 20px; cursor: pointer; font-size: 0.9rem; font-weight: bold; color: #475569; transition: 0.2s; display: flex; align-items: center; gap: 5px; }
+        .preset-btn:hover { background: #cbd5e1; }
+        .custom-preset-btn { background: #d1fae5; color: #065f46; }
+        .custom-preset-btn:hover { background: #a7f3d0; }
+        
+        /* 削除ボタンのスタイル */
+        .delete-btn { background: none; border: none; color: #ef4444; font-weight: bold; cursor: pointer; padding: 0 4px; border-radius: 50%; }
+        .delete-btn:hover { background: #fca5a5; color: #fff; }
+        
+        .save-preset-btn { background: #10b981; color: white; border: none; padding: 8px 15px; border-radius: 6px; cursor: pointer; font-weight: bold; font-size: 0.9rem; transition: 0.2s; margin-bottom: 20px; }
+        .save-preset-btn:hover { background: #059669; }
+
+        .preset-desc { display: none; background: #eef2ff; color: #3730a3; padding: 12px 15px; border-radius: 6px; font-size: 0.9rem; margin-bottom: 20px; border-left: 4px solid #4f46e5; }
+        .preset-desc strong { font-size: 1rem; color: #312e81; display: block; margin-bottom: 4px; }
+        
+        .budget-wrapper { display: flex; align-items: center; gap: 20px; margin-bottom: 15px; font-weight: bold; flex-wrap: wrap; }
+        .budget-wrapper input[type="number"] { width: 100px; padding: 8px; border: 1px solid #ccc; border-radius: 4px; font-size: 1rem; text-align: right; }
+        
+        .switch-label { display: inline-flex; align-items: center; cursor: pointer; font-size: 0.95rem; background: #fff3cd; color: #856404; padding: 6px 12px; border-radius: 6px; border: 1px solid #ffeeba; }
+        .switch-label input { width: 18px; height: 18px; margin-right: 8px; }
+
+        .nutrient-grid { display: grid; grid-template-columns: 1fr; gap: 8px; margin-bottom: 20px; }
+        .nutrient-row { display: grid; grid-template-columns: 30px 140px 80px 40px 80px 50px; align-items: center; background: #f1f5f9; padding: 6px 12px; border-radius: 6px; transition: 0.2s; }
+        .nutrient-row.disabled { opacity: 0.5; background: #f8fafc; }
+        .nutrient-row input[type="number"] { width: 100%; padding: 6px; border: 1px solid #ccc; border-radius: 4px; text-align: center; }
+        .nutrient-name { font-weight: bold; font-size: 0.9rem; }
+        .range-txt { text-align: center; color: #666; font-size: 0.85rem; }
+        .unit-txt { font-size: 0.85rem; color: #666; padding-left: 5px; }
+        
+        .calc-btn { width: 100%; background: #007bff; color: white; border: none; padding: 14px; font-size: 1.1rem; font-weight: bold; border-radius: 8px; cursor: pointer; transition: 0.2s; }
+        .calc-btn:hover { background: #0056b3; }
+        .calc-btn:disabled { background: #ccc; cursor: not-allowed; }
+        
+        .color-legend { background: #fff; padding: 15px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); margin-bottom: 15px; font-weight: bold; display: flex; gap: 15px; flex-wrap: wrap; border-left: 4px solid #6c757d; font-size: 0.9rem; }
+        
+        #results { margin-top: 10px; }
+        .combo-card { background: #fff; border-left: 5px solid #007bff; padding: 15px; margin-bottom: 15px; border-radius: 0 8px 8px 0; box-shadow: 0 2px 5px rgba(0,0,0,0.05); }
+        .rank { font-size: 1.2rem; font-weight: bold; color: #007bff; margin-bottom: 5px; border-bottom: 1px dashed #ccc; padding-bottom: 5px; }
+        
+        .combo-items-list { margin: 10px 0 15px 0; padding-left: 25px; list-style-type: disc; }
+        .combo-items-list li { font-size: 1.05rem; font-weight: bold; margin-bottom: 4px; color: #222; }
+        
+        .macros { display: grid; grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); gap: 8px; background: #f1f5f9; padding: 10px; border-radius: 5px; }
+        .macro-item { font-size: 0.85rem; color: #333; }
+        .macro-item.off-param { color: #888; font-size: 0.8rem; }
+        .macro-item span { font-weight: bold; color: #111; }
+        .macro-item.off-param span { color: #666; font-weight: normal; }
+        
+        .status-ok { color: #28a745 !important; } 
+        .status-under { color: #fd7e14 !important; } 
+        .status-over { color: #dc3545 !important; } 
+    </style>
+</head>
+<body>
+
+    <h1>食堂コンボジェネレーター</h1>
+    
+    <div class="panel">
+        <div class="section-title">1. プリセットから選ぶ</div>
+        
+        <div class="preset-buttons">
+            <button class="preset-btn" onclick="applyDefaultPreset('standard')">🍱 標準バランス</button>
+            <button class="preset-btn" onclick="applyDefaultPreset('recovery')">🏊 ハード練リカバリー</button>
+            <button class="preset-btn" onclick="applyDefaultPreset('sleepy')">📚 午後ガチ授業 (眠気防止)</button>
+        </div>
+
+        <div id="customPresetsArea" class="preset-buttons">
+            </div>
+        
+        <div id="presetDescription" class="preset-desc"></div>
+
+        <div class="section-title" style="margin-top: 10px;">2. パラメーター詳細設定</div>
+        
+        <div class="budget-wrapper">
+            <div>
+                <span>予算上限:</span>
+                <input type="number" id="budget" value="700" step="10"> <span>円</span>
+            </div>
+            <label class="switch-label">
+                <input type="checkbox" id="requireMainDish" checked>
+                主食（ご飯・麺類）を必ず1品以上含める
+            </label>
+        </div>
+
+        <label style="margin-bottom: 10px; display: block; font-size: 0.9rem;">(チェックONで計算対象)</label>
+        <div class="nutrient-grid" id="nutrientGrid"></div>
+        
+        <button class="save-preset-btn" onclick="saveCurrentStateAsPreset()">💾 現在の設定を「マイプリセット」に保存</button>
+
+        <button class="calc-btn" id="calcButton" disabled>データを読み込み中...</button>
+    </div>
+
+    <div class="color-legend">
+        <span><span class="status-ok">●</span> 範囲内（最適）</span>
+        <span><span class="status-under">●</span> 下限未達（不足）</span>
+        <span><span class="status-over">●</span> 上限超過（オーバー）</span>
+        <span style="color:#888; margin-left:10px;">※グレー文字は計算対象外（オフ）の項目</span>
+    </div>
+
+    <div id="results"></div>
+
+    <script>
+        const nutrientMaster = {
+            energy:   { csvKey: 'エネルギー', label: 'エネルギー', unit: 'kcal', weight: 1.0,  enabled: true,  min: 500, max: 800 },
+            protein:  { csvKey: '蛋白質',     label: '蛋白質',     unit: 'g',    weight: 2.0,  enabled: true,  min: 20,  max: 40 },
+            fat:      { csvKey: '脂質',       label: '脂質',       unit: 'g',    weight: 3.0,  enabled: true,  min: 10,  max: 20 },
+            carbs:    { csvKey: '炭水化物',   label: '炭水化物',   unit: 'g',    weight: 2.0,  enabled: true,  min: 40,  max: 80 },
+            salt:     { csvKey: '食塩相当量', label: '食塩相当量', unit: 'g',    weight: 10.0, enabled: false, min: 0,   max: 3.0 },
+            calcium:  { csvKey: 'カルシウム', label: 'カルシウム', unit: 'mg',   weight: 0.05, enabled: false, min: 100, max: 400 },
+            veg:      { csvKey: '野菜量',     label: '野菜量',     unit: 'g',    weight: 0.5,  enabled: false, min: 0,   max: 120 },
+            iron:     { csvKey: '鉄',         label: '鉄',         unit: 'mg',   weight: 5.0,  enabled: false, min: 2.0, max: 10.0 },
+            vitA:     { csvKey: 'ビタミンA',  label: 'ビタミンA',  unit: 'μg',   weight: 0.02, enabled: false, min: 100, max: 600 },
+            vitB1:    { csvKey: 'ビタミンB1', label: 'ビタミンB1', unit: 'mg',   weight: 20.0, enabled: false, min: 0.3, max: 1.5 },
+            vitB2:    { csvKey: 'ビタミンB2', label: 'ビタミンB2', unit: 'mg',   weight: 20.0, enabled: false, min: 0.3, max: 1.5 },
+            vitC:     { csvKey: 'ビタミンC',  label: 'ビタミンC',  unit: 'mg',   weight: 1.0,  enabled: false, min: 10,  max: 100 }
+        };
+
+        let globalMenuData = [];
+        let customPresets = []; // カスタムプリセットを保持する配列
+
+        document.addEventListener('DOMContentLoaded', () => {
+            initNutrientUI();
+            loadCustomPresetsFromStorage(); // LocalStorageから読み込み
+            
+            const csvUrl = 'menu_data.csv';
+            Papa.parse(csvUrl, {
+                download: true,
+                header: true,
+                skipEmptyLines: true,
+                complete: function(results) {
+                    globalMenuData = results.data;
+                    const btn = document.getElementById('calcButton');
+                    btn.disabled = false;
+                    btn.innerText = '最強コンボを計算';
+                    applyDefaultPreset('standard');
+                },
+                error: function(err) {
+                    console.error("CSV読み込みエラー:", err);
+                    document.getElementById('calcButton').innerText = 'データ読み込み失敗';
+                }
+            });
+        });
+
+        function initNutrientUI() {
+            const grid = document.getElementById('nutrientGrid');
+            grid.innerHTML = '';
+
+            Object.keys(nutrientMaster).forEach(key => {
+                const nut = nutrientMaster[key];
+                const row = document.createElement('div');
+                row.className = `nutrient-row ${nut.enabled ? '' : 'disabled'}`;
+                row.id = `row_${key}`;
+
+                row.innerHTML = `
+                    <input type="checkbox" id="chk_${key}" ${nut.enabled ? 'checked' : ''} onchange="toggleNutrientRow('${key}')">
+                    <span class="nutrient-name">${nut.label}</span>
+                    <input type="number" id="min_${key}" value="${nut.min}" ${nut.enabled ? '' : 'disabled'}>
+                    <span class="range-txt">≦ 値 ≦</span>
+                    <input type="number" id="max_${key}" value="${nut.max}" ${nut.enabled ? '' : 'disabled'}>
+                    <span class="unit-txt">${nut.unit}</span>
+                `;
+                grid.appendChild(row);
+            });
+        }
+
+        function toggleNutrientRow(key) {
+            const chk = document.getElementById(`chk_${key}`);
+            const minInput = document.getElementById(`min_${key}`);
+            const maxInput = document.getElementById(`max_${key}`);
+            const row = document.getElementById(`row_${key}`);
+
+            if (chk.checked) {
+                minInput.disabled = false;
+                maxInput.disabled = false;
+                row.classList.remove('disabled');
+            } else {
+                minInput.disabled = true;
+                maxInput.disabled = true;
+                row.classList.add('disabled');
+            }
+        }
+
+        // ---------- プリセット管理ロジック ----------
+
+        function applyDefaultPreset(type) {
+            Object.keys(nutrientMaster).forEach(key => {
+                document.getElementById(`chk_${key}`).checked = false;
+                toggleNutrientRow(key);
+            });
+
+            const descDiv = document.getElementById('presetDescription');
+            descDiv.style.display = 'block'; 
+            const mainDishChk = document.getElementById('requireMainDish');
+
+            if (type === 'standard') {
+                descDiv.innerHTML = `
+                    <strong>💡 標準的な一食（目安）</strong>
+                    エネルギー500〜800kcal。タンパク質20g前後、炭水化物80g前後、脂質15〜20g。<br>
+                    日々のベースとなる健康的なバランスです。
+                `;
+                setNutrientValues('energy',  true, 500, 800);
+                setNutrientValues('protein', true, 15,  30);
+                setNutrientValues('fat',     true, 10,  25);
+                setNutrientValues('carbs',   true, 60,  100);
+                document.getElementById('budget').value = 700;
+                mainDishChk.checked = true;
+                
+            } else if (type === 'recovery') {
+                descDiv.innerHTML = `
+                    <strong>💪 筋肉をつけたい・高負荷トレーニング後</strong>
+                    エネルギー700〜1000kcal。タンパク質30〜40g、炭水化物100g〜。<br>
+                    消化を早め、内臓への負担を減らすため脂質は15g以下を意識しています。
+                `;
+                setNutrientValues('energy',  true, 700, 1000);
+                setNutrientValues('protein', true, 30,  50);
+                setNutrientValues('fat',     true, 0,   15);
+                setNutrientValues('carbs',   true, 100, 150);
+                document.getElementById('budget').value = 800;
+                mainDishChk.checked = true; 
+                
+            } else if (type === 'sleepy') {
+                // 眠気防止のカロリーを 400〜600 に修正
+                descDiv.innerHTML = `
+                    <strong>📚 午後の眠気防止（デスクワーク・授業集中）</strong>
+                    エネルギー400〜600kcal。炭水化物40g以下（血糖値スパイクを抑える）。<br>
+                    消化管への血流集中を防ぐため、脂質も15g以下に抑える設定です。
+                `;
+                setNutrientValues('energy',  true, 400, 600);
+                setNutrientValues('protein', true, 20,  40);
+                setNutrientValues('fat',     true, 0,   15);
+                setNutrientValues('carbs',   true, 0,   40);
+                document.getElementById('budget').value = 600;
+                mainDishChk.checked = false; 
+            }
+
+            if(globalMenuData.length > 0) calculateCombos();
+        }
+
+        // 現在の画面の状態をオブジェクトとして取得する
+        function getCurrentState() {
+            const state = {
+                budget: document.getElementById('budget').value,
+                requireMainDish: document.getElementById('requireMainDish').checked,
+                nutrients: {}
+            };
+            Object.keys(nutrientMaster).forEach(key => {
+                state.nutrients[key] = {
+                    enabled: document.getElementById(`chk_${key}`).checked,
+                    min: document.getElementById(`min_${key}`).value,
+                    max: document.getElementById(`max_${key}`).value
+                };
+            });
+            return state;
+        }
+
+        // 現在の設定をLocalStorageに保存する
+        function saveCurrentStateAsPreset() {
+            const name = prompt("このプリセットの名前を入力してください（例: 減量期用）");
+            if (!name || name.trim() === "") return;
+
+            const newState = getCurrentState();
+            const newPreset = {
+                id: Date.now().toString(), // 一意のIDとしてタイムスタンプを使用
+                name: name.trim(),
+                state: newState
+            };
+
+            customPresets.push(newPreset);
+            localStorage.setItem('mealCombosCustomPresets', JSON.stringify(customPresets));
+            renderCustomPresets();
+            alert(`「${newPreset.name}」をマイプリセットに保存しました。`);
+        }
+
+        // LocalStorageから読み込む
+        function loadCustomPresetsFromStorage() {
+            const saved = localStorage.getItem('mealCombosCustomPresets');
+            if (saved) {
+                try {
+                    customPresets = JSON.parse(saved);
+                    renderCustomPresets();
+                } catch (e) {
+                    console.error("プリセットの読み込みに失敗しました", e);
+                }
+            }
+        }
+
+        // マイプリセットのボタンを画面に描画する
+        function renderCustomPresets() {
+            const area = document.getElementById('customPresetsArea');
+            area.innerHTML = ''; // クリア
+
+            customPresets.forEach(preset => {
+                const btnWrap = document.createElement('div');
+                btnWrap.style.display = 'inline-flex';
+                btnWrap.style.alignItems = 'center';
+
+                const btn = document.createElement('button');
+                btn.className = 'preset-btn custom-preset-btn';
+                btn.innerHTML = `⭐ ${preset.name}`;
+                btn.onclick = () => applyCustomPreset(preset.id);
+
+                const delBtn = document.createElement('button');
+                delBtn.className = 'delete-btn';
+                delBtn.innerHTML = '×';
+                delBtn.title = '削除';
+                delBtn.onclick = () => deleteCustomPreset(preset.id, preset.name);
+
+                btn.appendChild(delBtn);
+                btnWrap.appendChild(btn);
+                area.appendChild(btnWrap);
+            });
+        }
+
+        // マイプリセットを画面に適用する
+        function applyCustomPreset(id) {
+            const preset = customPresets.find(p => p.id === id);
+            if (!preset) return;
+
+            // UIへの反映
+            document.getElementById('budget').value = preset.state.budget;
+            document.getElementById('requireMainDish').checked = preset.state.requireMainDish;
+            
+            Object.keys(preset.state.nutrients).forEach(key => {
+                const nut = preset.state.nutrients[key];
+                setNutrientValues(key, nut.enabled, nut.min, nut.max);
+            });
+
+            // 解説エリアはカスタムであることを示す
+            const descDiv = document.getElementById('presetDescription');
+            descDiv.style.display = 'block'; 
+            descDiv.innerHTML = `<strong>⭐ マイプリセット：「${preset.name}」を適用中</strong>保存されたカスタム設定です。`;
+
+            if(globalMenuData.length > 0) calculateCombos();
+        }
+
+        // マイプリセットを削除する
+        function deleteCustomPreset(id, name) {
+            if (confirm(`プリセット「${name}」を削除してもよろしいですか？`)) {
+                customPresets = customPresets.filter(p => p.id !== id);
+                localStorage.setItem('mealCombosCustomPresets', JSON.stringify(customPresets));
+                renderCustomPresets();
+            }
+        }
+
+        function setNutrientValues(key, enabled, min, max) {
+            const chk = document.getElementById(`chk_${key}`);
+            if(chk) chk.checked = enabled;
+            
+            const minEl = document.getElementById(`min_${key}`);
+            if(minEl) minEl.value = min;
+            
+            const maxEl = document.getElementById(`max_${key}`);
+            if(maxEl) maxEl.value = max;
+            
+            toggleNutrientRow(key);
+        }
+
+        // ---------- 計算ロジック ----------
+
+        document.getElementById('calcButton').addEventListener('click', calculateCombos);
+
+        function calculateCombos() {
+            const budget = parseFloat(document.getElementById('budget').value);
+            const requireMainDish = document.getElementById('requireMainDish').checked;
+            
+            const runConfig = {};
+            Object.keys(nutrientMaster).forEach(key => {
+                const master = nutrientMaster[key];
+                const enabled = document.getElementById(`chk_${key}`).checked;
+                runConfig[key] = {
+                    csvKey: master.csvKey,
+                    label: master.label,
+                    unit: master.unit,
+                    weight: master.weight,
+                    enabled: enabled,
+                    min: parseFloat(document.getElementById(`min_${key}`).value) || 0,
+                    max: parseFloat(document.getElementById(`max_${key}`).value) || 0
+                };
+            });
+
+            const parseNum = (val) => parseFloat(String(val).replace(/[^0-9.]/g, '')) || 0;
+
+            const menu = globalMenuData.map(row => {
+                const itemNutrients = {};
+                Object.keys(runConfig).forEach(key => {
+                    const csvKey = runConfig[key].csvKey;
+                    let rawVal = row[csvKey];
+                    if (rawVal === undefined && key === 'protein') rawVal = row['蛋白'] || row['タンパク質'];
+                    if (rawVal === undefined && key === 'salt') rawVal = row['食塩'];
+                    if (rawVal === undefined && key === 'veg') rawVal = row['野菜'];
+                    itemNutrients[key] = parseNum(rawVal);
+                });
+
+                return {
+                    name: row['商品名'] || '不明',
+                    category: row['カテゴリ'] || '不明',
+                    price: parseNum(row['価格']),
+                    nutrients: itemNutrients
+                };
+            }).filter(item => item.price > 0);
+
+            const MAX_ITEMS = 5;
+            const allCombos = [];
+
+            function searchCombinations(startIndex, currentCombo, currentPrice) {
+                if (currentCombo.length > 0) allCombos.push([...currentCombo]);
+                if (currentCombo.length >= MAX_ITEMS) return;
+
+                for (let i = startIndex; i < menu.length; i++) {
+                    if (currentPrice + menu[i].price <= budget) {
+                        currentCombo.push(menu[i]);
+                        searchCombinations(i + 1, currentCombo, currentPrice + menu[i].price);
+                        currentCombo.pop();
+                    }
+                }
+            }
+
+            searchCombinations(0, [], 0);
+
+            const evaluatedCombos = allCombos.map(combo => {
+                const totalPrice = combo.reduce((sum, item) => sum + item.price, 0);
+                
+                const totalNutrients = {};
+                Object.keys(runConfig).forEach(key => {
+                    totalNutrients[key] = combo.reduce((sum, item) => sum + item.nutrients[key], 0);
+                });
+
+                let score = runConfig['protein'].enabled ? totalNutrients['protein'] : 0;
+
+                if (requireMainDish) {
+                    const hasMainDish = combo.some(item => 
+                        item.category.includes('主食') || 
+                        item.name.includes('ご飯') || 
+                        item.name.includes('ライス') || 
+                        item.name.includes('麺')
+                    );
+                    if (!hasMainDish) {
+                        score -= 5000; 
+                    }
+                }
+
+                Object.keys(runConfig).forEach(key => {
+                    const cfg = runConfig[key];
+                    if (!cfg.enabled) return; 
+
+                    const val = totalNutrients[key];
+                    if (val < cfg.min) {
+                        const diff = cfg.min - val;
+                        score -= diff * cfg.weight * 2.0; 
+                    }
+                    if (val > cfg.max) {
+                        const diff = val - cfg.max;
+                        score -= diff * cfg.weight * 2.0; 
+                    }
+                });
+
+                return { items: combo, totalPrice, totalNutrients, score };
+            });
+
+            evaluatedCombos.sort((a, b) => b.score - a.score);
+            const uniqueCombos = [];
+            const seenKeys = new Set();
+            for (const combo of evaluatedCombos) {
+                const key = combo.items.map(item => item.name).sort().join('|');
+                if (!seenKeys.has(key)) {
+                    seenKeys.add(key);
+                    uniqueCombos.push(combo);
+                }
+            }
+
+            renderResults(uniqueCombos.slice(0, 5), budget, runConfig);
+        }
+
+        function renderResults(top5, budget, runConfig) {
+            const resultsContainer = document.getElementById('results');
+            resultsContainer.innerHTML = '';
+
+            if (top5.length === 0) {
+                resultsContainer.innerHTML = '<p>条件に合う組み合わせが見つかりません。</p>';
+                return;
+            }
+
+            top5.forEach((combo, index) => {
+                const card = document.createElement('div');
+                card.className = 'combo-card';
+                
+                const itemsListHTML = `<ul class="combo-items-list">` + 
+                    combo.items.map(item => `<li>${item.name} (${item.price}円)</li>`).join('') + 
+                    `</ul>`;
+                
+                let macrosHTML = `<div class="macro-item">💰 価格: <span>${combo.totalPrice}円</span></div>`;
+                
+                Object.keys(runConfig).forEach(key => {
+                    const cfg = runConfig[key];
+                    const val = combo.totalNutrients[key];
+                    
+                    if (cfg.enabled) {
+                        let statusClass = 'status-ok';
+                        if (val < cfg.min) statusClass = 'status-under';
+                        if (val > cfg.max) statusClass = 'status-over';
+                        
+                        macrosHTML += `<div class="macro-item">${cfg.label}: <span class="${statusClass}">${val.toFixed(1)}${cfg.unit}</span></div>`;
+                    } else {
+                        macrosHTML += `<div class="macro-item off-param">${cfg.label}: <span>${val.toFixed(1)}${cfg.unit}</span></div>`;
+                    }
+                });
+
+                card.innerHTML = `
+                    <div class="rank">👑 第${index + 1}位 (適合スコア: ${combo.score.toFixed(1)})</div>
+                    <div>${itemsListHTML}</div>
+                    <div class="macros">${macrosHTML}</div>
+                `;
+                resultsContainer.appendChild(card);
+            });
+        }
+    </script>
+</body>
+</html>
