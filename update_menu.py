@@ -1,7 +1,6 @@
 from playwright.sync_api import sync_playwright
 import csv
 import time
-import os
 
 def scrape_komaba_menu():
     # 実際の対象URL
@@ -93,6 +92,23 @@ def scrape_komaba_menu():
                         vit_b2 = page.locator("dt:text-is('ビタミンB2') + dd").inner_text().strip()
                         vit_c = page.locator("dt:text-is('ビタミンC') + dd").inner_text().strip()
 
+                        # --- アレルギー情報の取得 ---
+                        try:
+                            # 「アレルギー情報」の次にある <ul> の中の <img> タグをすべて探す
+                            allergy_images = page.locator("h3:text-is('アレルギー情報') + ul img")
+                            
+                            # JavaScriptの機能を使って、全画像の 'alt' 属性の文字をリストとして一気に抜き出す
+                            allergy_list = allergy_images.evaluate_all("imgs => imgs.map(img => img.alt)")
+                            
+                            if allergy_list:
+                                # ['小麦', '鶏肉', '大豆'] を 「小麦、鶏肉、大豆」 のようにつなげる
+                                allergy = "、".join(allergy_list)
+                            else:
+                                allergy = "なし"
+                        except Exception as e:
+                            allergy = "なし"       
+
+
                         # データリストに追加
                         extracted_data.append({
                             "カテゴリ": category,
@@ -109,7 +125,8 @@ def scrape_komaba_menu():
                             "ビタミンA": vit_a,
                             "ビタミンB1": vit_b1,
                             "ビタミンB2": vit_b2,
-                            "ビタミンC": vit_c
+                            "ビタミンC": vit_c,
+                            "アレルギー": allergy
                         })
 
                     except Exception as e:
@@ -128,7 +145,7 @@ def scrape_komaba_menu():
 
     with open(csv_filename, mode="w", encoding="utf-8-sig", newline="") as f:
         # カテゴリ列を追加したヘッダー
-        headers = ["カテゴリ", "商品名", "価格", "エネルギー", "蛋白質", "脂質", "炭水化物", "食塩相当量", "カルシウム", "野菜量", "鉄", "ビタミンA", "ビタミンB1", "ビタミンB2", "ビタミンC"]
+        headers = ["カテゴリ", "商品名", "価格", "エネルギー", "蛋白質", "脂質", "炭水化物", "食塩相当量", "カルシウム", "野菜量", "鉄", "ビタミンA", "ビタミンB1", "ビタミンB2", "ビタミンC", "アレルギー"]
         writer = csv.DictWriter(f, fieldnames=headers)
         writer.writeheader()
         writer.writerows(extracted_data)
