@@ -19,7 +19,7 @@ def scrape_komaba_menu():
 
         # 変更後（画面を出さずに裏で実行するモード）
         browser = p.chromium.launch(headless=True)
-        
+
         page = browser.new_page()
 
         # --- 1. カテゴリごとの大きなループ ---
@@ -33,7 +33,11 @@ def scrape_komaba_menu():
 
             try:
                 # 対象のカテゴリをクリックして展開
-                page.locator(f"text={category}").click()
+                # 【変更前】部分一致だったため「黒米麦ごはん」などに反応してエラーになっていた
+                # page.locator(f"text={category}").click()
+                
+                # 【変更後】h3タグかつ完全一致で探すことで、確実にカテゴリの見出しだけを撃ち抜く
+                page.locator(f"h3:text-is('{category}')").click()
                 time.sleep(1)
 
                 # 【修正】特定のカテゴリ名を持つアコーディオン(details)の中だけに絞り込む
