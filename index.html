@@ -484,13 +484,20 @@
 
                 let score = runConfig['protein'].enabled ? totalNutrients['protein'] : 0;
 
+               // 【主食必須ロジック（カテゴリ判定版）】
                 if (requireMainDish) {
-                    const hasMainDish = combo.some(item => 
-                        item.category.includes('主食') || 
-                        item.name.includes('ご飯') || 
-                        item.name.includes('ライス') || 
-                        item.name.includes('麺')
-                    );
+                    // 主食として認めるカテゴリのキーワードリスト
+                    const mainCategories = ['丼物', 'カレー', '麺類', 'ごはん', 'ライス'];
+                    
+                    const hasMainDish = combo.some(item => {
+                        // item.category が空欄だった場合のエラーを防ぐため、念のため文字列化
+                        const categoryName = item.category || '';
+                        
+                        // カテゴリ名にリストのキーワードがどれか1つでも含まれているかチェック
+                        return mainCategories.some(keyword => categoryName.includes(keyword));
+                    });
+                    
+                    // 主食カテゴリのものが1つも入っていなければ、特大ペナルティ
                     if (!hasMainDish) {
                         score -= 5000; 
                     }
