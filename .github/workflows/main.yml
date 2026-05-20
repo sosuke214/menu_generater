@@ -2,7 +2,8 @@ name: Auto Update Menu Data
 
 on:
   schedule:
-    - cron: '0 21 * * *'
+    # 毎週日曜日 21:00 UTC（＝日本時間 毎週月曜日 06:00）に実行
+    - cron: '0 21 * * 0'
   workflow_dispatch:
 
 # Node.js 24の強制適用（警告回避用）
