@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>食堂コンボ最適化ツール (カスタムプリセット対応版)</title>
+    <title>食堂コンボ最適化ツール</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
     <style>
         body { font-family: "Helvetica Neue", Arial, "Hiragino Kaku Gothic ProN", "Hiragino Sans", Meiryo, sans-serif; background: #f8f9fa; color: #333; padding: 20px; max-width: 850px; margin: 0 auto; line-height: 1.6; }
@@ -69,7 +69,7 @@
 </head>
 <body>
 
-    <h1>食堂コンボジェネレーター</h1>
+    <h1>駒場学食 最強コンボジェネレーター</h1>
     <div id="lastUpdated" style="font-size: 0.85rem; color: #666; text-align: right; margin-bottom: 10px;">🔄 メニューデータ最終更新: 確認中...</div>
     
     <div class="panel">
@@ -115,6 +115,14 @@
     </div>
 
     <div id="results"></div>
+         <div style="margin-top: 40px; padding-top: 15px; border-top: 1px solid #eee; text-align: center; font-size: 0.85rem; color: #666;">
+            <span>データ出典: </span>
+            <a href="https://comenu.jp/tokyo-univ/390154/menu" target="_blank" rel="noopener noreferrer" style="color: #0066cc; text-decoration: underline;">
+                東大生協 駒場食堂 公式メニュー
+            </a>
+        </div>
+    </div> ```
+
 
     <script>
         const nutrientMaster = {
