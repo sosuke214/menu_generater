@@ -70,6 +70,7 @@
 <body>
 
     <h1>食堂コンボジェネレーター</h1>
+    <div id="lastUpdated" style="font-size: 0.85rem; color: #666; text-align: right; margin-bottom: 10px;">🔄 メニューデータ最終更新: 確認中...</div>
     
     <div class="panel">
         <div class="section-title">1. プリセットから選ぶ</div>
@@ -133,6 +134,23 @@
 
         let globalMenuData = [];
         let customPresets = []; // カスタムプリセットを保持する配列
+
+        // --- 追加: CSVの最終更新日時を取得して表示する処理 ---
+        fetch('menu_data.csv', { method: 'HEAD' })
+            .then(response => {
+                const lastModified = response.headers.get('Last-Modified');
+                if (lastModified) {
+                    const date = new Date(lastModified);
+                    const formatted = `${date.getFullYear()}/${String(date.getMonth() + 1).padStart(2, '0')}/${String(date.getDate()).padStart(2, '0')} ${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`;
+                    document.getElementById('lastUpdated').innerText = `🔄 データ最終更新: ${formatted}`;
+                } else {
+                    document.getElementById('lastUpdated').innerText = `🔄 データ最終更新: 取得できませんでした`;
+                }
+            })
+            .catch(err => {
+                document.getElementById('lastUpdated').innerText = `🔄 データ最終更新: エラー`;
+            });
+        // --------------------------------------------------
 
         document.addEventListener('DOMContentLoaded', () => {
             initNutrientUI();
