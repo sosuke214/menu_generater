@@ -13,7 +13,13 @@ def scrape_komaba_menu():
 
     with sync_playwright() as p:
         # headless=False のままであれば、実際のブラウザが動く様子を観察できる
-        browser = p.chromium.launch(headless=False)
+        
+        # 変更前
+        # browser = p.chromium.launch(headless=False)
+
+        # 変更後（画面を出さずに裏で実行するモード）
+        browser = p.chromium.launch(headless=True)
+        
         page = browser.new_page()
 
         # --- 1. カテゴリごとの大きなループ ---
